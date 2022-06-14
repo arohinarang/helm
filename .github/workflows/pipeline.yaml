@@ -143,10 +143,10 @@ jobs:
           rawnumber=$(echo $version | sed 's/\.//g')
           echo $rawnumber
           a=100
-          sum=$(expr $rawnumber + $a)
+          sum=$(( $rawnumber + $a))
           echo $sum
           newnumber=$(printf "%03d" $sum)
-          echo $newnumbr
+          echo $newnumber
           newversion="${newnumber:0:1}.${newnumber:1:1}.${newnumber:2:1}"
           echo $newversion
           echo "action_state=${newversion}" >> $GITHUB_ENV
