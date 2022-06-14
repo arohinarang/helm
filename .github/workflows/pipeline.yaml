@@ -144,7 +144,7 @@ jobs:
           echo $rawnumber
           a="100"
           echo $a
-          sum=$(( $rawnumber + $a))
+          sum=$(( $rawnumber + 100 ))
           echo $sum
           newnumber=$(printf "%03d" $sum)
           echo $newnumber
@@ -206,7 +206,7 @@ jobs:
         run: |
           if helm list -n $RELEASE_NAME | grep $RELEASE_NAME > /dev/null ; then if ! helm diff upgrade $RELEASE_NAME $REPO_URL --version $CHART_VERSION --detailed-exitcode; then helm upgrade $RELEASE_NAME $REPO_URL --version $CHART_VERSION ; else echo "There is no changes for this release."; fi; else helm install $RELEASE_NAME $REPO_URL  --version $CHART_VERSION; fi
         env:
-          CHART_VERSION: 0.1.0
+          CHART_VERSION: ${{env.action_state}}
           REPO_LOCATION: oci://us-central1-docker.pkg.dev/testing-336413/genesys
           REPO_URL: oci://us-central1-docker.pkg.dev/testing-336413/genesys/my-chart-current
           RELEASE_NAME: my-chart-current
