@@ -140,9 +140,9 @@ jobs:
           echo $cluster
           version=$(echo ${cluster[0]} | jq -c '.[0].tags[0]')
           echo $version
-          rawnumber=$(echo $version | sed 's/\.//g')
+          rawnumber="$(echo $version | sed 's/\.//g')"
           echo $rawnumber
-          sum="$(expr "$rawnumber" + "100")"
+          sum="$(expr "$rawnumber" + 100)"
           echo $sum
           newnumber="$(printf "%03d" "$sum")"
           echo $newnumbr
