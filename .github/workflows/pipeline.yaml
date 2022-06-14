@@ -134,9 +134,21 @@ jobs:
           demobackend=$(echo ${cluster[0]} | jq -c '.[].tags[0]')
           sed -i "s/\bbackend-v1\b/${demobackend}/g" ./charts/mychart/values.yaml
 
+      - name: update chart.yaml for version
+        run: |
+          cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/my-chart-current --format=json)
+          version=$(echo ${cluster[0]} | jq -c '.[].tags[0]')
+          rawnumber="$(echo $version | sed 's/\.//g')"
+          sum="$(expr "$rawnumber" + 100)"
+          newnumber="$(printf "%03d" "$sum")"
+          newversion="${newnumber:0:1}.${newnumber:1:1}.${newnumber:2:1}"
+          echo "action_state=${newversion}" >> $GITHUB_ENV
+          sed -i "s/\b1.0.0\b/${newversion}/g" ./charts/mychart/Chart.yaml
+
       - name: values.yaml file
         run: |
           cat ./charts/mychart/values.yaml
+          cat ./charts/mychart/Chart.yaml
 
       - name: package helm chart
         run: |-
@@ -144,7 +156,7 @@ jobs:
       
       - name: push helm chart
         run: |-
-          helm push my-chart-current-0.1.0.tgz oci://us-central1-docker.pkg.dev/testing-336413/genesys
+          helm push my-chart-current-${env.action_state}.tgz oci://us-central1-docker.pkg.dev/testing-336413/genesys
 
   kubernetes:
     runs-on: 'ubuntu-latest'
