@@ -142,7 +142,8 @@ jobs:
           echo $version
           rawnumber=$(echo $version | sed 's/\.//g')
           echo $rawnumber
-          a=100
+          a="100"
+          echo $a
           sum=$(( $rawnumber + $a))
           echo $sum
           newnumber=$(printf "%03d" $sum)
