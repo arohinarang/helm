@@ -1,11 +1,11 @@
 name: Build and Deploy to GKE
 
-on: 
+on:
   push:
-    branches: 
-    - 'frontend'
-    - 'backend'
-    - 'helm'
+    branches:
+      - "frontend"
+      - "backend"
+      - "helm"
 
 env:
   frontend-tag: "v1"
@@ -13,108 +13,108 @@ env:
 
 jobs:
   Frontend-docker-image:
-    runs-on: 'ubuntu-latest'
+    runs-on: "ubuntu-latest"
     if: github.ref == 'refs/heads/frontend'
     steps:
-      - name: 'Checkout Repository'
-        uses: 'actions/checkout@v2'
+      - name: "Checkout Repository"
+        uses: "actions/checkout@v2"
 
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v0'
+      - id: "auth"
+        uses: "google-github-actions/auth@v0"
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
 
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v0'
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v0"
 
-      - name: 'Use gcloud CLI'
-        run: 'gcloud info'
+      - name: "Use gcloud CLI"
+        run: "gcloud info"
 
-      - name: 'Configure Docker'
-        run: |- 
+      - name: "Configure Docker"
+        run: |-
           gcloud --quiet auth configure-docker
           gcloud auth configure-docker us-central1-docker.pkg.dev
-        
-      - name: 'Build Frontend Docker image'
+
+      - name: "Build Frontend Docker image"
         run: |-
           docker build -t frontend ./frontend
-        
-      - name: 'Tag Frontend Docker image'
+
+      - name: "Tag Frontend Docker image"
         run: |-
           docker tag frontend us-central1-docker.pkg.dev/testing-336413/genesys/frontend:${{ github.sha }}
-      
+
       - name: Set the Frontend SHA
         run: |
           echo "{frontend-tag}=${{ github.sha }}" >> $GITHUB_ENV
-      
-      - name: 'Push Frontend Docker image'
+
+      - name: "Push Frontend Docker image"
         run: |-
           docker push us-central1-docker.pkg.dev/testing-336413/genesys/frontend:${{ github.sha }}
-  
+
   Backend-docker-image:
-    runs-on: 'ubuntu-latest'
+    runs-on: "ubuntu-latest"
     if: github.ref == 'refs/heads/backend'
     steps:
-      - name: 'Checkout Repository'
-        uses: 'actions/checkout@v2'
+      - name: "Checkout Repository"
+        uses: "actions/checkout@v2"
         with:
           ref: backend
 
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v0'
+      - id: "auth"
+        uses: "google-github-actions/auth@v0"
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
 
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v0'
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v0"
 
-      - name: 'Use gcloud CLI'
-        run: 'gcloud info'
+      - name: "Use gcloud CLI"
+        run: "gcloud info"
 
-      - name: 'Configure Docker'
-        run: |- 
+      - name: "Configure Docker"
+        run: |-
           gcloud --quiet auth configure-docker
           gcloud auth configure-docker us-central1-docker.pkg.dev
-        
-      - name: 'Build Backend Docker image'
+
+      - name: "Build Backend Docker image"
         run: |-
           docker build -t backend ./backend
-        
-      - name: 'Tag Backend Docker image'
+
+      - name: "Tag Backend Docker image"
         run: |-
           docker tag backend us-central1-docker.pkg.dev/testing-336413/genesys/backend:${{ github.sha }}
 
       - name: Set the Frontend SHA
         run: |
           echo "{backend-tag}=${{ github.sha }}" >> $GITHUB_ENV
-      
-      - name: 'Push Backend Docker image'
+
+      - name: "Push Backend Docker image"
         run: |-
           docker push us-central1-docker.pkg.dev/testing-336413/genesys/backend:${{ github.sha }}
 
   helm-package:
-    runs-on: 'ubuntu-latest'
+    runs-on: "ubuntu-latest"
     if: github.ref == 'refs/heads/helm'
     steps:
-      - name: 'Checkout Repository'
-        uses: 'actions/checkout@v2'
+      - name: "Checkout Repository"
+        uses: "actions/checkout@v2"
 
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v0'
+      - id: "auth"
+        uses: "google-github-actions/auth@v0"
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
 
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v0'
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v0"
 
-      - name: 'Use gcloud CLI'
-        run: 'gcloud info'
-        
-      - name: 'Configure Docker'
-        run: |- 
+      - name: "Use gcloud CLI"
+        run: "gcloud info"
+
+      - name: "Configure Docker"
+        run: |-
           gcloud --quiet auth configure-docker
           gcloud auth configure-docker us-central1-docker.pkg.dev
-  
+
       - name: setup Helm3
         run: |
           curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
@@ -127,7 +127,7 @@ jobs:
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/frontend --format=json)
           demofrontend=$(echo ${cluster[0]} | jq -c '.[].tags[0]')
           sed -i "s/\bfrontend-v1\b/${demofrontend}/g" ./charts/mychart/values.yaml
-          
+
       - name: update values.yaml for backend-tag
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/backend --format=json)
@@ -137,11 +137,12 @@ jobs:
       - name: update chart.yaml for version
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/my-chart-current --format=json)
+          echo $cluster
           version=$(echo ${cluster[0]} | jq -c '.[].tags[0]')
           echo $version
-          rawnumber="$(echo $version | sed 's/\.//g')"
+          rawnumber=$(echo $version | sed 's/\.//g')
           echo $rawnumber
-          sum="$(expr "$rawnumber" + 100)"
+          sum="$(expr "$rawnumber" + "100")"
           echo $sum
           newnumber="$(printf "%03d" "$sum")"
           echo $newnumbr
@@ -158,32 +159,32 @@ jobs:
       - name: package helm chart
         run: |-
           helm package ./charts/mychart
-      
+
       - name: push helm chart
         run: |-
           helm push my-chart-current-${env.action_state}.tgz oci://us-central1-docker.pkg.dev/testing-336413/genesys
 
   kubernetes:
-    runs-on: 'ubuntu-latest'
+    runs-on: "ubuntu-latest"
     if: github.ref == 'refs/heads/helm'
     needs: helm-package
     steps:
-      - name: 'Checkout Repository'
-        uses: 'actions/checkout@v2'
+      - name: "Checkout Repository"
+        uses: "actions/checkout@v2"
 
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v0'
+      - id: "auth"
+        uses: "google-github-actions/auth@v0"
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+          credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
 
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v0'
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v0"
 
-      - name: 'Use gcloud CLI'
-        run: 'gcloud info'
-      
-      - name: 'Configure Docker'
-        run: |- 
+      - name: "Use gcloud CLI"
+        run: "gcloud info"
+
+      - name: "Configure Docker"
+        run: |-
           gcloud --quiet auth configure-docker
           gcloud auth configure-docker us-central1-docker.pkg.dev
 
@@ -191,7 +192,7 @@ jobs:
         run: |
           gcloud config set project testing-336413
           gcloud container clusters get-credentials cluster-1 --region=us-central1-c
-  
+
       - name: setup Helm3
         run: |
           curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
@@ -199,15 +200,11 @@ jobs:
           ./get_helm.sh
           helm plugin install https://github.com/databus23/helm-diff
 
-      - name: helm install 
+      - name: helm install
         run: |
           if helm list -n $RELEASE_NAME | grep $RELEASE_NAME > /dev/null ; then if ! helm diff upgrade $RELEASE_NAME $REPO_URL --version $CHART_VERSION --detailed-exitcode; then helm upgrade $RELEASE_NAME $REPO_URL --version $CHART_VERSION ; else echo "There is no changes for this release."; fi; else helm install $RELEASE_NAME $REPO_URL  --version $CHART_VERSION; fi
-        env: 
+        env:
           CHART_VERSION: 0.1.0
           REPO_LOCATION: oci://us-central1-docker.pkg.dev/testing-336413/genesys
           REPO_URL: oci://us-central1-docker.pkg.dev/testing-336413/genesys/my-chart-current
           RELEASE_NAME: my-chart-current
-      
-     
-
-      
