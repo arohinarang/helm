@@ -145,7 +145,7 @@ jobs:
           
 
           sum=$(( rawnumber + 100 ))
-          echo $sum
+          
 
           newnumber=$(printf "%03d" $sum)
           echo $newnumber
