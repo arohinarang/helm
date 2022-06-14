@@ -140,16 +140,19 @@ jobs:
           echo $cluster
           version=$(echo ${cluster[0]} | jq -c '.[0].tags[0]')
           echo $version
+
           rawnumber=$(echo $version | sed 's/\.//g')
           echo $rawnumber
-          a="100"
-          echo $a
-          sum=$(( $rawnumber + 100 ))
+
+          sum=$(( rawnumber + 100 ))
           echo $sum
+
           newnumber=$(printf "%03d" $sum)
           echo $newnumber
+          
           newversion="${newnumber:0:1}.${newnumber:1:1}.${newnumber:2:1}"
           echo $newversion
+          
           echo "action_state=${newversion}" >> $GITHUB_ENV
           sed -i "s/\b1.0.0\b/${newversion}/g" ./charts/mychart/Chart.yaml
 
