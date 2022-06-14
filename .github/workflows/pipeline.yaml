@@ -138,7 +138,7 @@ jobs:
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/my-chart-current --format=json)
           echo $cluster
-          version=$(echo ${cluster[0]} | jq -c '.[].tags[0]')
+          version=$(echo ${cluster[0]} | jq -c '.[0].tags[0]')
           echo $version
           rawnumber=$(echo $version | sed 's/\.//g')
           echo $rawnumber
