@@ -163,7 +163,7 @@ jobs:
 
       - name: push helm chart
         run: |-
-          helm push my-chart-current-${env.action_state}.tgz oci://us-central1-docker.pkg.dev/testing-336413/genesys
+          helm push my-chart-current-${{env.action_state}}.tgz oci://us-central1-docker.pkg.dev/testing-336413/genesys
 
   kubernetes:
     runs-on: "ubuntu-latest"
