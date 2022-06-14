@@ -138,10 +138,15 @@ jobs:
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/my-chart-current --format=json)
           version=$(echo ${cluster[0]} | jq -c '.[].tags[0]')
+          echo $version
           rawnumber="$(echo $version | sed 's/\.//g')"
+          echo $rawnumber
           sum="$(expr "$rawnumber" + 100)"
+          echo $sum
           newnumber="$(printf "%03d" "$sum")"
+          echo $newnumbr
           newversion="${newnumber:0:1}.${newnumber:1:1}.${newnumber:2:1}"
+          echo $newversion
           echo "action_state=${newversion}" >> $GITHUB_ENV
           sed -i "s/\b1.0.0\b/${newversion}/g" ./charts/mychart/Chart.yaml
 
