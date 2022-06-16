@@ -206,11 +206,7 @@ jobs:
           version=$(echo ${cluster[0]} | jq -c '.[0].tags[0]')
           newversion=$(echo "$version" | tr -d '"')
           if helm list -n $RELEASE_NAME | grep $RELEASE_NAME > /dev/null ;
-          then 
-            if ! helm diff upgrade $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion --detailed-exitcode;
-              then helm upgrade $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion; 
-            else echo "There is no changes for this release."; 
-            fi; 
+          then helm upgrade $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion;  
           else helm install $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion; 
           fi
         env:
