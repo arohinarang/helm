@@ -4,14 +4,14 @@ name: Helm notify
 on:
   workflow_run:
     workflows: ["Build and Deploy to GKE"]
-    branches: [frontend, backend]
+    branches: [frontend]
     types:
       - completed
 
 jobs:
   helm-package:
     runs-on: "ubuntu-latest"
-    env: 
+    env:
       frontend_image_avaialble: false
       backend_image_avaialble: false
     steps:
@@ -33,9 +33,9 @@ jobs:
         run: |-
           gcloud --quiet auth configure-docker
           gcloud auth configure-docker us-central1-docker.pkg.dev
-        
+
       - name: "Get Latest frontend docker image"
-        run: |-  
+        run: |-
           frontend=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/frontend --format=json)
           backend=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/backend --format=json)
           if (( ${#frontend[@]} )); then
@@ -112,7 +112,7 @@ jobs:
 
   kubernetes:
     runs-on: "ubuntu-latest"
-    env: 
+    env:
       frontend_image_avaialble: false
       backend_image_avaialble: false
     needs: helm-package
@@ -142,7 +142,7 @@ jobs:
           gcloud container clusters get-credentials cluster-1 --region=us-central1-c
 
       - name: "Get Latest frontend docker image"
-        run: |-  
+        run: |-
           frontend=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/frontend --format=json)
           backend=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/backend --format=json)
           if (( ${#frontend[@]} )); then
