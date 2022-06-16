@@ -133,7 +133,7 @@ jobs:
           fi
 
       - name: setup Helm3
-        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+        if: ${{ env.front_image_available == "true" && env.backend_image_available == "true"}}
         run: |
           curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
           chmod 700 get_helm.sh
@@ -141,7 +141,7 @@ jobs:
           helm plugin install https://github.com/databus23/helm-diff
 
       - name: update values.yaml for frontend-tag
-        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+        if: ${{env.front_image_available == "true" && env.backend_image_available == "true"}}
 
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/frontend --format=json)
@@ -149,7 +149,7 @@ jobs:
           sed -i "s/\bfrontend-v1\b/${demofrontend}/g" ./charts/mychart/values.yaml
 
       - name: update values.yaml for backend-tag
-        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+        if: ${{env.front_image_available == "true" && env.backend_image_available == "true"}}
 
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/backend --format=json)
@@ -157,7 +157,7 @@ jobs:
           sed -i "s/\bbackend-v1\b/${demobackend}/g" ./charts/mychart/values.yaml
 
       - name: update chart.yaml for version
-        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+        if: ${{env.front_image_available == "true" && env.backend_image_available == "true"}}
 
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/my-chart-current --format=json --sort-by="[~tags]")
@@ -176,20 +176,20 @@ jobs:
           sed -i "s/\b1.0.0\b/${newversion}/g" ./charts/mychart/Chart.yaml
 
       - name: values.yaml file
-        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+        if: ${{env.front_image_available == "true" && env.backend_image_available == "true"}}
 
         run: |
           cat ./charts/mychart/values.yaml
           cat ./charts/mychart/Chart.yaml
 
       - name: package helm chart
-        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+        if: ${{env.front_image_available == "true" && env.backend_image_available == "true"}}
 
         run: |-
           helm package ./charts/mychart
 
       - name: push helm chart
-        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+        if: ${{env.front_image_available == "true" && env.backend_image_available == "true"}}
 
         run: |-
           helm push my-chart-current-${{env.action_state}}.tgz oci://us-central1-docker.pkg.dev/testing-336413/genesys
@@ -240,7 +240,7 @@ jobs:
           fi
 
       - name: setup Helm3
-        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+        if: ${{env.front_image_available == "true" && env.backend_image_available == "true"}}
 
         run: |
           curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
@@ -249,7 +249,7 @@ jobs:
           helm plugin install https://github.com/databus23/helm-diff
 
       - name: helm install
-        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+        if: ${{env.front_image_available == "true" && env.backend_image_available == "true"}}
 
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/my-chart-current --format=json --sort-by="[~tags]")
