@@ -205,9 +205,14 @@ jobs:
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/my-chart-current --format=json --sort-by="[~tags]")
           version=$(echo ${cluster[0]} | jq -c '.[0].tags[0]')
           newversion=$(echo "$version" | tr -d '"')
+          helm list -n $RELEASE_NAME
           if helm list -n $RELEASE_NAME | grep $RELEASE_NAME > /dev/null ;
-          then helm upgrade $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion;  
-          else helm install $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion; 
+          then 
+          echo "line 211" 
+          helm upgrade --install $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion;  
+          else 
+          echo line "214"
+          helm install $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion; 
           fi
         env:
           CHART_REPO: oci://us-central1-docker.pkg.dev/testing-336413/genesys
