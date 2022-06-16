@@ -140,7 +140,7 @@ jobs:
           helm plugin install https://github.com/databus23/helm-diff
 
       - name: update values.yaml for frontend-tag
-        if: ${{ env.front_image_available == "true" }} && ${{ env.backend_image_available == "true" }}
+        if: ${{ env.front_image_available }} == "true" && ${{ env.backend_image_available }} == "true"
 
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/frontend --format=json)
