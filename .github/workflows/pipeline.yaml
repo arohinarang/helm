@@ -94,7 +94,7 @@ jobs:
 
   helm-package:
     runs-on: "ubuntu-latest"
-    needs: [Frontend-docker-image]
+    needs: Frontend-docker-image
     env: 
       frontend_image_avaialble: false
       backend_image_avaialble: false
