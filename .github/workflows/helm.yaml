@@ -4,6 +4,7 @@ name: Helm notify
 on:
   workflow_run:
     workflows: ["Build and Deploy to GKE"]
+    branches: [frontend, backend]
     types:
       - completed
 
