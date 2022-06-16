@@ -210,10 +210,10 @@ jobs:
           if helm list -n $RELEASE_NAME | grep $RELEASE_NAME > /dev/null ;
           then 
             if ! helm diff upgrade $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion --detailed-exitcode;
-              then helm upgrade $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion --dry-run; 
+              then helm upgrade $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion; 
             else echo "There is no changes for this release."; 
             fi; 
-          else helm install $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion --dry-run; 
+          else helm install $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion; 
           fi
         env:
           CHART_REPO: oci://us-central1-docker.pkg.dev/testing-336413/genesys
