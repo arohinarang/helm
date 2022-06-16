@@ -123,12 +123,12 @@ jobs:
           backend=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/backend --format=json)
           if (( ${#frontend[@]} )); then
               echo not empty
-              echo "frontend_image_avaialble"=true" >> $GITHUB_ENV
+              echo "frontend_image_avaialble=true" >> $GITHUB_ENV
           fi
 
           if (( ${#backend[@]} )); then
               echo not empty
-              echo "backend_image_avaialble"=true" >> $GITHUB_ENV
+              echo "backend_image_avaialble=true" >> $GITHUB_ENV
           fi
 
       - name: setup Helm3
