@@ -143,9 +143,9 @@ jobs:
           echo $version
 
           rawnumber=$(echo $version | sed 's/\.//g')
-          
-          sum=$(( rawnumber + 100 ))
-          
+          newrawnumber=$(echo "$rawnumber" | tr -d '"')
+          sum=$(( newrawnumber + 100 ))
+          echo $sum
 
           newnumber=$(printf "%03d" $sum)
           echo $newnumber
@@ -209,13 +209,14 @@ jobs:
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/my-chart-current --format=json --sort-by="~timestamp")
           version=$(echo ${cluster[0]} | jq -c '.[0].tags[0]')
+          newversion=$(echo "$version" | tr -d '"')
           if helm list -n $RELEASE_NAME | grep $RELEASE_NAME > /dev/null ;
           then 
-            if ! helm diff upgrade $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $version --detailed-exitcode;
-              then helm upgrade $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $version --dry-run; 
+            if ! helm diff upgrade $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion --detailed-exitcode;
+              then helm upgrade $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion --dry-run; 
             else echo "There is no changes for this release."; 
             fi; 
-          else helm install $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $version --dry-run; 
+          else helm install $RELEASE_NAME $CHART_REPO/$CHART_NAME --namespace $CHART_NAMESPACE --version $newversion --dry-run; 
           fi
         env:
           CHART_REPO: oci://us-central1-docker.pkg.dev/testing-336413/genesys
