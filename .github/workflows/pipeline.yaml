@@ -222,4 +222,4 @@ jobs:
           CHART_REPO: oci://us-central1-docker.pkg.dev/testing-336413/genesys
           CHART_NAME: my-chart-current
           RELEASE_NAME: my-chart-current
-          NAME_SPACE: default
+          CHART_NAMESPACE: default
