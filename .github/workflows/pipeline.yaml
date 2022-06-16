@@ -95,6 +95,9 @@ jobs:
   helm-package:
     runs-on: "ubuntu-latest"
     if: github.ref == 'refs/heads/helm'
+    env: 
+      frontend_image_avaialble: false
+      backend_image_avaialble: false
     steps:
       - name: "Checkout Repository"
         uses: "actions/checkout@v2"
@@ -114,8 +117,23 @@ jobs:
         run: |-
           gcloud --quiet auth configure-docker
           gcloud auth configure-docker us-central1-docker.pkg.dev
+        
+      - name: "Get Latest frontend docker image"
+        run: |-  
+          frontend=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/frontend --format=json)
+          backend=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/backend --format=json)
+          if (( ${#frontend[@]} )); then
+              echo not empty
+              echo "frontend_image_avaialble"=true" >> $GITHUB_ENV
+          fi
+
+          if (( ${#backend[@]} )); then
+              echo not empty
+              echo "backend_image_avaialble"=true" >> $GITHUB_ENV
+          fi
 
       - name: setup Helm3
+        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
         run: |
           curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
           chmod 700 get_helm.sh
@@ -123,18 +141,24 @@ jobs:
           helm plugin install https://github.com/databus23/helm-diff
 
       - name: update values.yaml for frontend-tag
+        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/frontend --format=json)
           demofrontend=$(echo ${cluster[0]} | jq -c '.[].tags[0]')
           sed -i "s/\bfrontend-v1\b/${demofrontend}/g" ./charts/mychart/values.yaml
 
       - name: update values.yaml for backend-tag
+        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/backend --format=json)
           demobackend=$(echo ${cluster[0]} | jq -c '.[].tags[0]')
           sed -i "s/\bbackend-v1\b/${demobackend}/g" ./charts/mychart/values.yaml
 
       - name: update chart.yaml for version
+        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/my-chart-current --format=json --sort-by="[~tags]")
           echo $cluster
@@ -152,21 +176,29 @@ jobs:
           sed -i "s/\b1.0.0\b/${newversion}/g" ./charts/mychart/Chart.yaml
 
       - name: values.yaml file
+        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+
         run: |
           cat ./charts/mychart/values.yaml
           cat ./charts/mychart/Chart.yaml
 
       - name: package helm chart
+        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+
         run: |-
           helm package ./charts/mychart
 
       - name: push helm chart
+        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+
         run: |-
           helm push my-chart-current-${{env.action_state}}.tgz oci://us-central1-docker.pkg.dev/testing-336413/genesys
 
   kubernetes:
     runs-on: "ubuntu-latest"
-    if: github.ref == 'refs/heads/helm'
+    env: 
+      frontend_image_avaialble: false
+      backend_image_avaialble: false
     needs: helm-package
     steps:
       - name: "Checkout Repository"
@@ -193,7 +225,23 @@ jobs:
           gcloud config set project testing-336413
           gcloud container clusters get-credentials cluster-1 --region=us-central1-c
 
+      - name: "Get Latest frontend docker image"
+        run: |-  
+          frontend=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/frontend --format=json)
+          backend=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/backend --format=json)
+          if (( ${#frontend[@]} )); then
+              echo not empty
+              echo "frontend_image_avaialble"=true" >> $GITHUB_ENV
+          fi
+
+          if (( ${#backend[@]} )); then
+              echo not empty
+              echo "backend_image_avaialble"=true" >> $GITHUB_ENV
+          fi
+
       - name: setup Helm3
+        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+
         run: |
           curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
           chmod 700 get_helm.sh
@@ -201,6 +249,8 @@ jobs:
           helm plugin install https://github.com/databus23/helm-diff
 
       - name: helm install
+        if: {{env.front_image_available == "true" && env.backend_image_available == "true"}}
+
         run: |
           cluster=$(gcloud container images list-tags us-central1-docker.pkg.dev/testing-336413/genesys/my-chart-current --format=json --sort-by="[~tags]")
           version=$(echo ${cluster[0]} | jq -c '.[0].tags[0]')
