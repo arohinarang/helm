@@ -1,0 +1,11 @@
+- name = Not Empty
+- on = push or pull_request should be present and branches should be present 
+- env =  if defined should not be empty, it will consist of key value pair
+- jobs = Job-name (should exist)
+- runs-on = Not Empty
+- steps = 
+- "actions/checkout@v2" 
+- "google-github-actions/auth@v0" ->  with (should exist): crendentials_json (should exist) : value
+- "google-github-actions/setup-gcloud@v0"
+- "Configure Docker for artifact registry and authentication to Google Cloud"
+- Tag docker image with latest github commit
