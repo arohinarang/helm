@@ -1,13 +1,13 @@
 name: Run Terraform Plan
 
-on:  
+on:
   pull_request:
     branches:
       - main
 
-jobs: 
+jobs:
   build:
-    if: ${{ github.head_ref == 'terraform'}}
+    if: ${{ github.event.pull_request.head.ref == 'terraform'}}
     runs-on: ubuntu-latest
 
     steps:
