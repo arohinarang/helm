@@ -1,0 +1,16 @@
+name: Run Terraform Plan
+
+on:  
+  pull_request:
+    branches:
+      - main
+
+jobs: 
+  build:
+    if: ${{ github.head_ref == 'terraform'}}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run a multi-line script
+        run: |
+          echo "Do something here"
