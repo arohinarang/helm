@@ -1,8 +1,9 @@
 data "google_client_config" "provider" {}
 
 data "google_container_cluster" "my_cluster" {
-  name     = "my-cluster"
-  location = "us-central1"
+  name     = "cluster-1"
+  location = "us-central1-c"
+  project = "testing-336413"
 }
 
 # provider "helm" {
@@ -10,8 +11,6 @@ data "google_container_cluster" "my_cluster" {
 #     config_path = "~/.kube/config"
 #   }
 # }
-
-
 
 provider "helm" {
   kubernetes {
