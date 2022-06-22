@@ -1,3 +1,5 @@
+name: Run Terraform Apply
+
 on:
   pull_request:
     branches:
@@ -6,9 +8,10 @@ on:
       - closed
 
 jobs:
-  if_merged:
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    steps:
-    - run: |
-        echo The PR was merged
+  apply:
+    if_merged:
+      if: github.event.pull_request.merged == true
+      runs-on: ubuntu-latest
+      steps:
+      - run: |
+          echo The PR was merged
