@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build:
+  plan:
     if: ${{ github.event.pull_request.head.ref == 'terraform'}}
     runs-on: ubuntu-latest
 
