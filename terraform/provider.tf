@@ -6,6 +6,7 @@ data "google_container_cluster" "my_cluster" {
   project  = "testing-336413"
 }
 
+
 provider "helm" {
   kubernetes {
     host  = "https://${data.google_container_cluster.my_cluster.endpoint}"
