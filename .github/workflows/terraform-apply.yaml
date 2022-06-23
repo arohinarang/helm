@@ -40,6 +40,21 @@ jobs:
       run: terraform fmt -list=true -write=false -diff=true -check=true
 
     - name: Terraform Plan
-      run: terraform plan 
+      run: |-
+        terraform plan -input=false -no-color -out=tfplan \
+        && terraform show -no-color tfplan
+      id: plan
+      env:
+        GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+    
+    - name: Apply Terraform
+      id: apply
+      continue-on-error: true
+      run: |
+        terraform apply \
+          -input=false \
+          -no-color \
+          tfplan
+
       env:
         GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}

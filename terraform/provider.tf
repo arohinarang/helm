@@ -1,9 +1,9 @@
 data "google_client_config" "provider" {}
 
 data "google_container_cluster" "my_cluster" {
-  name     = "cluster-1"
+  name     = "viram-gke"
   location = "us-central1-c"
-  project  = "testing-336413"
+  project  = "q-gcp-7959-genesysstaff-22-06"
 }
 
 provider "helm" {
