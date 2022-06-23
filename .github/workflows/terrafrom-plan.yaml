@@ -39,6 +39,7 @@ jobs:
 
       - name: Terraform Plan
         run: terraform plan 
+        id: plan
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
       
@@ -51,7 +52,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '👋 Thanks for reporting!'
+              body: `${{ steps.plan.outputs.stdout || steps.plan.outputs.stderr }}`
             })
       
 

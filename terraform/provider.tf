@@ -6,7 +6,6 @@ data "google_container_cluster" "my_cluster" {
   project  = "q-gcp-7959-genesysstaff-22-06"
 }
 
-
 provider "helm" {
   kubernetes {
     host  = "https://${data.google_container_cluster.my_cluster.endpoint}"
