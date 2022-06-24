@@ -24,13 +24,13 @@ jobs:
               array2+=("$i")
             fi
           done
-          echo "::set-output name=runner::${array2[@]}" 
+          echo "::set-output name=runner::macos-latest" 
 
   plan:
     needs: build
     if: ${{ github.event.pull_request.head.ref == 'terraform'}}
     # runs-on: ubuntu-latest
-    runs-on: ["self-hosted","${{ needs.build.outputs.runner[0] }},${{ needs.build.outputs.runner[1] }}"] 
+    runs-on: ["self-hosted","${{ needs.build.outputs.runner }}"] 
 
     defaults:
       run:
