@@ -9,22 +9,22 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      runner: ${{ steps.runner_step.outputs.runner_id }}
+      runner: ${{ steps.runner.outputs.runner }}
     steps:
       - uses: actions/checkout@v3
       - name: Extract values from branch
-        id: runner_step
+        id: runner
         run: |
           str="gcp-us-east2-dev-trials"
           array2=()
           IFS='-'     # hyphen (-) is set as delimiter
           read -ra ADDR <<< "$str"   # str is read into an array as tokens separated by IFS
           for i in "${ADDR[@]}"; do
-              if [ "$i" == "gcp" -o "$i" == "us" -o "$i" == "east2" ] ; then # access each element of array
-                array2+=("$i")
-              fi
+            if [ "$i" == "gcp" -o "$i" == "us" -o "$i" == "east2" ] ; then # access each element of array
+              array2+=("$i")
+            fi
           done
-              echo "::set-output name=runner_id::${array2[@]}" 
+          echo "::set-output name=runner::${array2[@]}" 
 
   plan:
     needs: build
