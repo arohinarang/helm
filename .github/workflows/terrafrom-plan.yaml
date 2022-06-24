@@ -11,6 +11,7 @@ jobs:
     outputs:
       runner_cloud: ${{ steps.runner.outputs.runner_cloud }}
       runner_location: ${{ steps.runner.outputs.runner_location }}
+           
 
     steps:
       - uses: actions/checkout@v3
@@ -28,7 +29,8 @@ jobs:
             fi
           done
           echo "::set-output name=runner_cloud::${array2[0]}" 
-          echo "::set-output name=runner_location::${array2[1]}" 
+          echo "::set-output name=runner_location::${array2[1]}-${array2[2]}" 
+          
 
 
   plan:
