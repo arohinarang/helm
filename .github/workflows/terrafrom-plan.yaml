@@ -6,9 +6,31 @@ on:
       - main
 
 jobs:
-  plan:
-    if: ${{ github.event.pull_request.head.ref == 'terraform'}}
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.runner_step.outputs.runner_id }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Extract values from branch
+        id: runner_step
+        run: |
+          str="gcp-us-east2-dev-trials"
+          array2=()
+          IFS='-'     # hyphen (-) is set as delimiter
+          read -ra ADDR <<< "$str"   # str is read into an array as tokens separated by IFS
+          for i in "${ADDR[@]}"; do
+              if [ "$i" == "gcp" -o "$i" == "us" -o "$i" == "east2" ] ; then # access each element of array
+                array2+=("$i")
+              fi
+          done
+              echo "::set-output name=runner_id::${array2[@]}" 
+
+  plan:
+    needs: build
+    if: ${{ github.event.pull_request.head.ref == 'terraform'}}
+    # runs-on: ubuntu-latest
+    runs-on: ["self-hosted","${{ needs.build.outputs.runner[0] }},${{ needs.build.outputs.runner[1]"] 
 
     defaults:
       run:
