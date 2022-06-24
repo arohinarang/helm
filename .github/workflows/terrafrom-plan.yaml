@@ -30,7 +30,7 @@ jobs:
     needs: build
     if: ${{ github.event.pull_request.head.ref == 'terraform'}}
     # runs-on: ubuntu-latest
-    runs-on: ["self-hosted","${{ needs.build.outputs.runner[0] }},${{ needs.build.outputs.runner[1]"] 
+    runs-on: ["self-hosted","${{ needs.build.outputs.runner[0] }},${{ needs.build.outputs.runner[1] }}"] 
 
     defaults:
       run:
