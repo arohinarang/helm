@@ -17,7 +17,8 @@ jobs:
       - name: Extract values from branch
         id: runner
         run: |
-          str="gcp-us-east2-dev-trials"
+          str=${{ github.event.pull_request.head.ref }}
+          echo $str
           array2=()
           IFS='-'     # hyphen (-) is set as delimiter
           read -ra ADDR <<< "$str"   # str is read into an array as tokens separated by IFS
@@ -32,7 +33,7 @@ jobs:
 
   plan:
     needs: build
-    if: ${{ github.event.pull_request.head.ref == 'terraform'}}
+    if: ${{ github.event.pull_request.head.ref == 'gcp-us-east2-dev-trials'}}
     # runs-on: ubuntu-latest
     runs-on: ["self-hosted","${{ needs.build.outputs.runner_cloud }}", "${{ needs.build.outputs.runner_location }}"] 
 
