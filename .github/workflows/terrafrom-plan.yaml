@@ -9,7 +9,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      runner: ${{ steps.runner.outputs.runner }}
+      runner_cloud: ${{ steps.runner.outputs.runner_cloud }}
+      runner_location: ${{ steps.runner.outputs.runner_location }}
+
     steps:
       - uses: actions/checkout@v3
       - name: Extract values from branch
@@ -24,13 +26,15 @@ jobs:
               array2+=("$i")
             fi
           done
-          echo "::set-output name=runner::macos-latest" 
+          echo "::set-output name=runner_cloud::${array2[0]}" 
+          echo "::set-output name=runner_location::${array2[1]}" 
+
 
   plan:
     needs: build
     if: ${{ github.event.pull_request.head.ref == 'terraform'}}
     # runs-on: ubuntu-latest
-    runs-on: ["self-hosted","${{ needs.build.outputs.runner }}"] 
+    runs-on: ["self-hosted","${{ needs.build.outputs.runner_cloud }}", "${{ needs.build.outputs.runner_location }}"] 
 
     defaults:
       run:

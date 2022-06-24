@@ -270,11 +270,3 @@ jobs:
           RELEASE_NAME: my-chart-current
           CHART_NAMESPACE: default
 
-
-str="gcp-us-east2-branch"
-substr="-"
-prefix=${str%%$substr*}
-first-index=${#prefix}
-last-index = $(echo $str | awk -F"-" '{print length($0)-length($NF) -1 }')
-cloud = ${str:0:$first-index}
-location = ${str:$first-index:$last-index-$first-index}
