@@ -28,6 +28,7 @@ jobs:
           done
           echo "::set-output name=runner_cloud::${array2[0]}" 
           echo "::set-output name=runner_location::${array2[1]}-${array2[2]}" 
+          echo "::set-output name=hash::${{ hashFiles('chart/mychart/templates/**') }}"
           
            
   plan:

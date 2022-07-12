@@ -1,0 +1,500 @@
+# Validate components when creating a Pull Request.
+# See README.md for all supported parameters.
+
+name: Validate Components
+
+on:
+  pull_request:
+    branches:
+      - master
+    types: [opened, edited, synchronize]
+
+env:
+  PR_NUMBER: ${{ github.event.pull_request.number }}
+  JFROG_API_KEY: ${{ secrets.JFROG_API_KEY }}
+
+jobs:
+
+  # Inititlize parameters ################################################
+  init:
+    outputs:
+      # Force validate: [true|false]
+      force: ${{ steps.params.outputs.force }}
+      # List of tenants separated by spaces
+      tenants: ${{ steps.params.outputs.tenants }}
+      # Matrix in JSON format for helm-chart job
+      #  chart: [...]
+      #  release: [...]
+      #  environment: [dev]
+      #  location: [westus2]
+      #  tenant: [...]
+      helm-chart-matrix: '${{ steps.params.outputs.helm-chart-matrix }}'
+      # Matrix in JSON format for terraform job
+      #  environment: [dev]
+      #  location: [westus2]
+      terraform-matrix: '${{ steps.params.outputs.terraform-matrix }}'
+      # Failover deployment flag: [true|false]
+      failover: ${{ steps.params.outputs.failover }}
+
+    runs-on:
+      - self-hosted
+      - dev
+      - westus2
+
+    steps:
+      - name: Clean Workspace
+        uses: AutoModality/action-clean@d004b47eb728f2a83316fc70ba9a62ef97278013 # v1.1.0
+      - name: Clean up Runner
+        run: |
+          set -x
+          rm -f ~/.ssh/*
+          rm -f ~/.gitconfig
+        continue-on-error: true
+
+      - name: Checkout repository
+        uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # v3.0.0
+
+      - name: Checkout GenesysEngage Actions
+        uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # v3.0.0
+        with:
+          repository: genesysengage/actions
+          ref: caed61c63d3da148ecba52457cfe7699c1443d9a # v1.4.0
+          path: .engage-actions
+          token: ${{ secrets.GIT_ACTION_PAT }}
+
+      - name: Parse PR Title
+        id: prtitle
+        uses: ./.engage-actions/parse-instructions
+        with:
+          instructions: ${{ github.event.pull_request.title }}
+
+      - name: Print Parsed Instructions
+        run: |
+          echo "Location: ${{steps.prtitle.outputs.location}}"
+          echo "Environment: ${{steps.prtitle.outputs.environment}}"
+          echo "Action: ${{steps.prtitle.outputs.action}}"
+          echo "Version: ${{steps.prtitle.outputs.version}}"
+          for tenant in ${{steps.prtitle.outputs.tenants}} ; do
+            echo "tenant: ${tenant}"
+          done
+      - name: Get Parameters
+        id: params
+        run: |
+          prtitle="${{ github.event.pull_request.title }}"
+          failover=false
+          [[ ${prtitle} == *"deploy-failover:"* || ${prtitle} == *"destroy-failover:"* ]] && failover=true
+          if [[ ${failover} == "true" ]] ; then
+            if [[ ${prtitle} == *"deploy:"* ]] || [[ ${prtitle} == *"destroy:"* ]] || [[ ${prtitle} == *"deploy-init:"* ]] || [[ ${prtitle} == *"deploy-shared:"* ]] || [[ ${prtitle} == *"destroy-shared:"* ]] || [[ ${prtitle} == *"deploy-infra:"* ]]; then
+              echo "Error in title tags. Failover tags could not be used with other tags."
+              exit 1
+            fi
+          fi
+          force=false
+          [[ ${prtitle} == *"force-validate:"* ]] && force=true
+          tenant_charts=($(cat ${GITHUB_WORKSPACE}/action_values/tenant_charts.txt))
+          charts=($(find ${GITHUB_WORKSPACE}/helm -maxdepth 1 -mindepth 1 -type d -not -name common -printf '%f\n'))
+          environments=("${{steps.prtitle.outputs.environment}}")
+          locations=("${{steps.prtitle.outputs.location}}")
+          tenants=(${{steps.prtitle.outputs.tenants}})
+          if [[ ${#environments[@]} -eq 0 ]]; then
+            environments=(dev)
+          fi
+          if [[ ${#locations[@]} -eq 0 ]]; then
+            locations=($(cat ./action_values/$environments[1]/regions.txt))
+          fi
+          if [[ ${failover} == "true" ]]; then
+            if [ ! -f ./helmvalues/common/azure/${environments[0]}/${locations[0]}/failover/values.yaml ]; then
+              echo "failover config not found"
+              exit 1
+            fi
+            failover_location=$(grep -Po "(?<=failover_location: )(.)*" ./action_values/${environments[0]}/${locations[0]}/values.txt)
+          fi
+          charts_matrix_includes=()
+          for chart in "${charts[@]}"; do
+            for environment in "${environments[@]}"; do
+              for location in "${locations[@]}"; do
+                for release in $(jq -r ".[]|select(.chart==\"${chart}\")|.name" helmvalues/releases.json); do
+                  if [[ "${tenant_charts[@]}" =~ (^| )"${chart}"($| ) ]]; then
+                    tenant_dir=helmvalues/${release}/azure/${environment}/${location}
+                    for dir in $(ls ${tenant_dir}); do
+                      [[ ${dir} =~ ^[[:digit:]]+ ]] || continue
+                      for tenant in "${tenants[@]}"; do
+                        [[ -z "${tenant}" ]] && continue
+                        sid="${tenant%---*}"
+                        if [[ -f "${tenant_dir}/${dir}/values.yaml" ]]; then
+                          if [[ "${dir}" == "${sid}" ]] || [[ "${tenant}" == "000---BULK" ]]; then
+                            if [[ ${failover} == 'true' ]]; then
+                              charts_matrix_includes+=("{\"tenant\":\"${dir}\",\"release\":\"${release}\",\"chart\":\"${chart}\",\"environment\":\"${environment}\",\"location\":\"${failover_location}\", \"main_location\":\"${location}\"}")
+                            else
+                              charts_matrix_includes+=("{\"tenant\":\"${dir}\",\"release\":\"${release}\",\"chart\":\"${chart}\",\"environment\":\"${environment}\",\"location\":\"${location}\", \"main_location\":\"${location}\"}")
+                            fi
+                          fi
+                        fi
+                      done
+                    done
+                  else
+                    if [[ ${failover} == 'true' ]]; then
+                      charts_matrix_includes+=("{\"tenant\":\"shared\",\"release\":\"${release}\",\"chart\":\"${chart}\",\"environment\":\"${environment}\",\"location\":\"${failover_location}\", \"main_location\":\"${location}\"}")
+                    else
+                      charts_matrix_includes+=("{\"tenant\":\"shared\",\"release\":\"${release}\",\"chart\":\"${chart}\",\"environment\":\"${environment}\",\"location\":\"${location}\", \"main_location\":\"${location}\"}")
+                    fi
+                  fi
+                done
+              done
+            done
+          done
+          charts_matrix_includes_json=$(printf '%s,' "${charts_matrix_includes[@]}" | sed 's/^/[/;s/,$/]/')
+          environments_json=$(printf '"%s",' "${environments[@]}" | sed 's/^/[/;s/,$/]/')
+          locations_json=$(printf '"%s",' "${locations[@]}" | sed 's/^/[/;s/,$/]/')
+          set -x
+          echo "::set-output name=force::${force}"
+          echo "::set-output name=failover::${failover}"
+          echo "::set-output name=tenants::${tenants[*]}"
+          echo "::set-output name=helm-chart-matrix::{\"include\":${charts_matrix_includes_json}}"
+          echo "::set-output name=terraform-matrix::{\"environment\":${environments_json},\"location\":${locations_json}}"
+  # Aggregate states of validation #######################################
+  build:
+    needs: [ init, terraform, helm-chart ]
+    if: always()
+    runs-on:
+      - self-hosted
+      - dev
+      - westus2
+
+    steps:
+      - name: Check Job Statuses
+        run: |
+          [[ "${{ contains(needs.*.result, 'failure') }}" == "false" ]]
+  # Validate Terraform ###################################################
+  terraform:
+    needs: [ init ]
+    strategy:
+      matrix: ${{ fromJSON(needs.init.outputs.terraform-matrix) }}
+      fail-fast: false
+
+    runs-on:
+      - self-hosted
+      - ${{ matrix.environment }}
+      - ${{ matrix.location }}
+
+    env:
+      SECRET: AZURE_${{ matrix.environment }}
+
+    steps:
+      - name: Clean Workspace
+        uses: AutoModality/action-clean@d004b47eb728f2a83316fc70ba9a62ef97278013 # v1.1.0
+      - name: Clean up Runner
+        run: |
+          set -x
+          rm -f ~/.ssh/*
+          rm -f ~/.gitconfig
+        continue-on-error: true
+
+      - name: Checkout Repository
+        uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # v3.0.0
+
+      - name: Get Info
+        id: info
+        run: |
+          cdn_enabled=false
+          cdn_input='./terraform/azure/${{ matrix.environment }}/${{ matrix.location }}/cdn/variables.tf'
+          if [[ -f ${cdn_input} ]]; then
+            cdn_enabled=true
+          fi
+          set -x
+          echo "::set-output name=cdn_enabled::${cdn_enabled}"
+          echo "::set-output name=hash::${{ hashFiles(
+            'terraform/infra-module/**',
+            'terraform/cdn-module/**',
+            format('terraform/azure/{0}/{1}/**', matrix.environment, matrix.location),
+            '.github/workflows/validate-components.yml') }}"
+      - name: Get Modified
+        uses: actions/cache@136d96b4aee02b1f0de3ba493b1d47135042d9c0 # v3.0.1
+        with:
+          path: |
+            terraform/modify-${{ matrix.environment }}-${{ matrix.location }}-${{ steps.info.outputs.hash }}.lock
+          key: ${{ runner.os }}-modify-terraform-${{ matrix.environment }}-${{ matrix.location }}-${{ steps.info.outputs.hash }}
+          restore-keys: modify-terraform-${{ matrix.environment }}-${{ matrix.location }}-${{ steps.info.outputs.hash }}
+
+      - name: Check Modified
+        id: modified
+        run: |
+          value=true
+          if [ -e "terraform/modify-${{ matrix.environment }}-${{ matrix.location }}-${{ steps.info.outputs.hash }}.lock" ]; then
+            value=false
+          fi
+          set -x
+          echo "::set-output name=value::${value}"
+      - name: Checkout GenesysEngage Actions
+        if: steps.modified.outputs.value == 'true' || needs.init.outputs.force == 'true'
+        uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # v3.0.0
+        with:
+          repository: genesysengage/actions
+          ref: caed61c63d3da148ecba52457cfe7699c1443d9a # v1.4.0
+          path: .engage-actions
+          token: ${{ secrets.GIT_ACTION_PAT }}
+
+      - name: Setup GenesysEngage Actions
+        if: steps.modified.outputs.value == 'true' || needs.init.outputs.force == 'true'
+        env:
+          ARTIFACTORY_STAGING_PASSWORD: ${{ secrets.ARTIFACTORY_STAGING_PASSWORD }}
+        uses: ./.engage-actions/setup-genesysengage
+        with:
+          cloud: azure
+          servicegroup: pulse
+          environment: ${{ matrix.environment }}
+          location: ${{ matrix.location }}
+          secret: ${{ secrets[env.SECRET] }}
+          token: ${{ secrets.GIT_ACTION_PAT }}
+
+      - name: Validate
+        if: steps.modified.outputs.value == 'true' || needs.init.outputs.force == 'true'
+        uses: ./.engage-actions/terraform
+        with:
+          command: validate
+          environment: ${{ matrix.environment }}
+          location: ${{ matrix.location }}
+
+      - name: Plan
+        if: steps.modified.outputs.value == 'true' || needs.init.outputs.force == 'true'
+        uses: ./.engage-actions/terraform
+        id: terraform
+        with:
+          command: plan
+          environment: ${{ matrix.environment }}
+          location: ${{ matrix.location }}
+
+      - name: Upload Terraform Plan
+        if: steps.modified.outputs.value == 'true' || needs.init.outputs.force == 'true'
+        uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v3.0.0
+        with:
+          name: terraform-${{ matrix.environment }}-${{ matrix.location }}
+          path: ${{ steps.terraform.outputs.actionPlanFile }}
+
+      - name: Validate CDN
+        if: (steps.modified.outputs.value == 'true' || needs.init.outputs.force == 'true') && steps.info.outputs.cdn_enabled == 'true'
+        uses: ./.engage-actions/terraform
+        with:
+          command: validate
+          environment: ${{ matrix.environment }}
+          location: ${{ matrix.location }}
+          directory: './terraform/azure/${{ matrix.environment }}/${{ matrix.location }}/cdn'
+
+      - name: Plan CDN
+        if: (steps.modified.outputs.value == 'true' || needs.init.outputs.force == 'true') && steps.info.outputs.cdn_enabled == 'true'
+        uses: ./.engage-actions/terraform
+        id: terraform-cdn
+        with:
+          command: plan
+          environment: ${{ matrix.environment }}
+          location: ${{ matrix.location }}
+          directory: './terraform/azure/${{ matrix.environment }}/${{ matrix.location }}/cdn'
+
+      - name: Upload Terraform CDN Plan
+        if: (steps.modified.outputs.value == 'true' || needs.init.outputs.force == 'true') && steps.info.outputs.cdn_enabled == 'true'
+        uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v3.0.0
+        with:
+          name: terraform-${{ matrix.environment }}-${{ matrix.location }}-cdn
+          path: ${{ steps.terraform-cdn.outputs.actionPlanFile }}
+
+      - name: Cache Result
+        if: success()
+        run: |
+          touch "terraform/modify-${{ matrix.environment }}-${{ matrix.location }}-${{ steps.info.outputs.hash }}.lock"
+  # Validate Helm Chart ##################################################
+  helm-chart:
+    needs: [ init ]
+    strategy:
+      matrix: ${{ fromJSON(needs.init.outputs.helm-chart-matrix) }}
+      
+
+      fail-fast: false
+
+    runs-on:
+      - self-hosted
+      - ${{ matrix.environment }}
+      - ${{ matrix.location }}
+
+    env:
+      SECRET: AZURE_${{ matrix.environment }}
+
+    steps:
+      - name: Clean Workspace
+        uses: AutoModality/action-clean@d004b47eb728f2a83316fc70ba9a62ef97278013 # v1.1.0
+      - name: Clean up Runner
+        run: |
+          set -x
+          rm -f ~/.ssh/*
+          rm -f ~/.gitconfig
+        continue-on-error: true
+
+      - name: Checkout Repository
+        uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # v3.0.0
+
+      - name: Get Info
+        id: info
+        run: |
+          version=$(helm show chart helm/${{ matrix.chart }} | grep -e "^version:" | sed -E "s/[a-z:]+[[:blank:]]+//")
+          set -x
+          echo "::set-output name=version::${version}"
+          echo "::set-output name=hash::${{ hashFiles(
+            format('helm/{0}/**', matrix.chart),
+            'helm/common/**') }}"
+          echo "::set-output name=values-hash::${{ hashFiles(
+            format('helmvalues/{0}/*/*.yaml', matrix.release),
+            format('helmvalues/{0}/*/{1}/*.yaml', matrix.release, matrix.environment),
+            format('helmvalues/{0}/*/{1}/{2}/**', matrix.release, matrix.environment, matrix.main_location),
+            format('helmvalues/common/*/{0}/*.yaml', matrix.environment),
+            format('helmvalues/common/*/{0}/{1}/**', matrix.environment, matrix.main_location),
+            '.github/workflows/validate-components.yml') }}"
+      - name: Get Published
+        uses: actions/cache@136d96b4aee02b1f0de3ba493b1d47135042d9c0 # v3.0.1
+        with:
+          path: |
+            helm/publish-${{ matrix.chart }}-${{ steps.info.outputs.version }}.lock
+          key: ${{ runner.os }}-publish-helm-chart-${{ matrix.chart }}-${{ matrix.environment }}-${{ matrix.main_location }}-${{ steps.info.outputs.version }}
+          restore-keys: publish-helm-chart-${{ matrix.chart }}-${{ matrix.environment }}-${{ steps.info.outputs.version }}
+
+      - name: Check Published
+        id: published
+        run: |
+          value=false
+          if [ -e "helm/publish-${{ matrix.chart }}-${{ matrix.environment }}-${{ steps.info.outputs.version }}.lock" ]; then
+            value=true
+          fi
+          set -x
+          echo "::set-output name=value::${value}"
+      - name: Get Chart Modified
+        uses: actions/cache@136d96b4aee02b1f0de3ba493b1d47135042d9c0 # v3.0.1
+        with:
+          path: |
+            helm/modify-${{ matrix.chart }}-${{ steps.info.outputs.hash }}.lock
+          key: ${{ runner.os }}-modify-helm-chart-${{ matrix.chart }}-${{ matrix.environment }}-${{ matrix.main_location }}-${{ steps.info.outputs.hash }}
+          restore-keys: modify-helm-chart-${{ matrix.chart }}-${{ steps.info.outputs.hash }}
+
+      - name: Get Values Modified
+        uses: actions/cache@136d96b4aee02b1f0de3ba493b1d47135042d9c0 # v3.0.1
+        with:
+          path: |
+            helm/modify-values-${{ matrix.release }}-${{ matrix.environment }}-${{ matrix.main_location }}-${{ steps.info.outputs.values-hash }}.lock
+          key: ${{ runner.os }}-modify-helm-chart-values-${{ matrix.release }}-${{ matrix.environment }}-${{ matrix.main_location }}-${{ steps.info.outputs.values-hash }}
+          restore-keys: modify-helm-chart-values-${{ matrix.release }}-${{ matrix.environment }}-${{ matrix.main_location }}-${{ steps.info.outputs.values-hash }}
+
+      - name: Check Modified
+        id: modified
+        run: |
+          value=true
+          if [ -e "helm/modify-${{ matrix.chart }}-${{ steps.info.outputs.hash }}.lock" ]; then
+            if [ -e "helm/modify-values-${{ matrix.release }}-${{ matrix.environment }}-${{ matrix.main_location }}-${{ steps.info.outputs.values-hash }}.lock" ]; then
+              value=false
+            fi
+          elif [ "${{ steps.published.outputs.value }}" = "true" ]; then
+            echo "ERROR: The chart ${{ matrix.chart }}-${{ steps.info.outputs.version }} is already published."
+            echo "ERROR: Consider to bump up chart's version."
+            exit 1
+          fi
+          set -x
+          echo "::set-output name=value::${value}"
+      - name: Checkout GenesysEngage Actions
+        if: "(steps.modified.outputs.value == 'true'
+          || steps.published.outputs.value != 'true'
+          || needs.init.outputs.force == 'true')"
+        uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # v3.0.0
+        with:
+          repository: genesysengage/actions
+          ref: caed61c63d3da148ecba52457cfe7699c1443d9a # v1.4.0
+          path: .engage-actions
+          token: ${{ secrets.GIT_ACTION_PAT }}
+
+      - name: Setup for Azure
+        if: "(steps.modified.outputs.value == 'true'
+          || steps.published.outputs.value != 'true'
+          || needs.init.outputs.force == 'true')"
+        env:
+          ARTIFACTORY_STAGING_PASSWORD: ${{ secrets.ARTIFACTORY_STAGING_PASSWORD }}
+        uses: ./.engage-actions/setup-genesysengage
+        with:
+          cloud: azure
+          servicegroup: pulse
+          environment: ${{ matrix.environment }}
+          location: ${{ matrix.location }}
+          secret: ${{ secrets[env.SECRET] }}
+          token: ${{ secrets.GIT_ACTION_PAT }}
+
+      - name: Setup K8S Context
+        if: "(steps.modified.outputs.value == 'true'
+          || steps.published.outputs.value != 'true'
+          || needs.init.outputs.force == 'true')"
+        uses: ./.github/actions/setup-context
+        with:
+          cloud: azure
+          environment: ${{ matrix.environment }}
+          location: ${{ matrix.location }}
+          namespace: pulse
+          artifactory-username: ${{ secrets.ARTIFACTORY_STAGING_USERNAME }}
+          artifactory-secret: ${{ secrets.ARTIFACTORY_STAGING_PASSWORD }}
+
+      - name: Render Chart
+        if: steps.modified.outputs.value == 'true' || needs.init.outputs.force == 'true'
+        uses: ./.github/actions/render-chart
+        with:
+          chart: ${{ matrix.chart }}
+          release: ${{ matrix.release }}
+          tenant: ${{ matrix.tenant }}
+          environment: ${{ matrix.environment }}
+          location: ${{ matrix.main_location }}
+          failover: ${{ needs.init.outputs.failover }}
+          path: ${{ github.workspace }}/target/${{ matrix.release }}-${{ matrix.environment }}-${{ matrix.main_location }}.yaml
+
+      - name: Upload Artifacts
+        if: steps.modified.outputs.value == 'true' || needs.init.outputs.force == 'true'
+        uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v3.0.0
+        with:
+          name: ${{ matrix.release }}-${{ matrix.environment }}-${{ matrix.main_location }}
+          path: target/
+
+      - name: Lint Chart
+        if: steps.modified.outputs.value == 'true' || needs.init.outputs.force == 'true'
+        uses: ./.github/actions/lint-chart
+        with:
+          chart: ${{ matrix.chart }}
+          release: ${{ matrix.release }}
+          tenant: ${{ matrix.tenant }}
+          environment: ${{ matrix.environment }}
+          location: ${{ matrix.main_location }}
+          failover: ${{ needs.init.outputs.failover }}
+
+      - name: Package Chart
+        if: steps.published.outputs.value != 'true'
+        run: |
+          helm dependency update helm/${{ matrix.chart }}/
+          helm package helm/${{ matrix.chart }} --debug
+      - name: Publish Chart
+        if: steps.published.outputs.value != 'true'
+        uses: ./.github/actions/publish-chart
+        with:
+          chart: ${{ matrix.chart }}
+          version: ${{ steps.info.outputs.version }}
+          environment: ${{ matrix.environment }}
+
+      - name: Check Chart
+        if: steps.published.outputs.value != 'true'
+        uses: ./.github/actions/deploy-chart
+        with:
+          chart: ${{ matrix.chart }}
+          release: ${{ matrix.release }}
+          tenant: ${{ matrix.tenant }}
+          environment: ${{ matrix.environment }}
+          location: ${{ matrix.main_location }}
+          failover: ${{ needs.init.outputs.failover }}
+          force: ${{ needs.init.outputs.force }}
+          dry-run: true
+
+      - name: Cache Result
+        if: success()
+        run: |
+          set +x
+          echo "${{ steps.info.outputs.hash }}" \
+            > "helm/modify-${{ matrix.chart }}-${{ steps.info.outputs.hash }}.lock"
+          echo "${{ steps.info.outputs.values-hash }}" \
+            > "helm/modify-values-${{ matrix.release }}-${{ matrix.environment }}-${{ matrix.main_location }}-${{ steps.info.outputs.values-hash }}.lock"
