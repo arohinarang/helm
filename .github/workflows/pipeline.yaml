@@ -269,3 +269,4 @@ jobs:
           CHART_NAME: my-chart-current
           RELEASE_NAME: my-chart-current
           CHART_NAMESPACE: default
+
