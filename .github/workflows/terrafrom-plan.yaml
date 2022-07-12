@@ -9,8 +9,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      runner_cloud: ${{ steps.runner.outputs.runner_cloud }}
-      runner_location: ${{ steps.runner.outputs.runner_location }}
+      cloud: ${{ steps.runner.outputs.runner_cloud }}
+      location: ${{ steps.runner.outputs.runner_location }}
     steps:
       - uses: actions/checkout@v3
       - name: Extract values from branch
@@ -35,7 +35,7 @@ jobs:
     needs: build
     if: ${{ github.event.pull_request.head.ref == 'gcp-us-east2-dev-trials'}}
     # runs-on: ubuntu-latest
-    runs-on: ["self-hosted","${{ needs.build.outputs.runner_cloud }}", "${{ needs.build.outputs.runner_location }}"] 
+    runs-on: ["self-hosted","${{ needs.build.outputs.cloud }}", "${{ needs.build.outputs.location }}"] 
 
     defaults:
       run:
